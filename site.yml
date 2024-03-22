@@ -4,29 +4,44 @@
   become: true
   pre_tasks:
 
-  - name: install updates (CentOS)
+  - name: update repo cache (CentOS)
     tags: always
     dnf:
-      update_only: yes
       update_cache: yes
+    changed_when: false
     when: ansible_distribution == "CentOS"
 
-  - name: install updates (Debian)
+  - name: update repo cache (Debian)
     tags: always
     apt:
-      upgrade: dist
       update_cache: yes
+    changed_when: false
     when: ansible_distribution == "Debian"
+
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: add ssh key for simone
+    tags: always
+    authorized_key:
+      user: simone
+      key:  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtWXvCCftrJ1WJX8MFoOg9+C7zqKbeBRvHUAjqtQSxy ansible"
+
 
 - hosts: workstations
   become: true
+  tags: workstations_tasks
   tasks:
       
     - name: install unzip
+      tags: terraform
       package:
           name: unzip
 
     - name: install terraform
+      tags: terraform
       unarchive:
         src: https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip
         dest: /usr/local/bin
@@ -34,6 +49,7 @@
         mode: 0755
         owner: root
         group: root
+
 
 - hosts: web_servers
   become: true
@@ -56,7 +72,31 @@
         - php
       state: latest
     when: ansible_distribution == "CentOS"
-  
+
+  - name: start httpd (CentOS)
+    tags: apache,centos,httpd
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+    when: ansible_distribution == "CentOS"
+ 
+  - name: change e-mail address for admin
+    tags: apache,centos,httpd
+    lineinfile: 
+      path: /etc/httpd/conf/httpd.conf
+      regexp: 'ŠerverAdmin'
+      line: ServerAdmin sombody@somewhere.net
+    when: ansible_distribution == "CentOS"
+    register: httpd
+
+  - name: restart httpd (CentOS)
+    tags: apache,centos,httpd
+    service:
+      name: httpd
+      state: restarted
+    when: httpd.changed
+
   - name: copy default html file for site
     tags: apache,apache2,httpd
     copy:
@@ -65,6 +105,7 @@
       owner: root
       group: root
       mode: 0644
+
 
 - hosts: db_servers
   become: true
@@ -83,6 +124,7 @@
       name: mariadb-server
       state: latest
     when: ansible_distribution == "Debian"
+
 
 - hosts: file_servers
   become: true

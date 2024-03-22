@@ -13,3 +13,15 @@
     apt:
       name: libapache2-mod-php
       state: absent
+
+  - name: remove samba 
+    apt:
+      name: samba
+      state: absent
+
+  - name: remove mamariadb
+    apt:
+      name: mariadb-server
+      state: absent
+
+
